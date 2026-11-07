@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  user_email   String   @unique
+  user_pass    String
+  user_name    String?
+  user_role    String   @default("admin")
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  posts        Post[]
+}
+
+model PostType {
+  id                    String   @id @default(cuid())
+  post_type             String   @unique
+  post_type_label       String
+  post_type_description String?
+  post_type_system      Boolean  @default(false)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+}
+
+// Ajustes globales clave/valor (estilo wp_options). Guarda, entre otros, el
+// "theme" como JSON serializado bajo la clave `theme`.
+model Setting {
+  key        String   @id
+  value      String
+  updated_at DateTime @updatedAt
+}
+
+// Biblioteca de medios. Los ficheros se guardan en public/uploads/<año>/<mes>/
+// y aquí queda su metadato; los bloques de imagen guardan un puntero (media_id).
+model Media {
+  id            String   @id @default(cuid())
+  url           String
+  filename      String
+  original_name String
+  mime_type     String
+  size          Int
+  alt           String?
+  created_at    DateTime @default(now())
+}
+
+// Patrones sincronizados: bloques reutilizables compartidos entre posts. Los
+// bloques de tipo `pattern` guardan solo `pattern_id`; el contenido real vive
+// aquÃ­ y se resuelve al renderizar/editor.
+model Pattern {
+  id            String   @id @default(cuid())
+  pattern_slug  String   @unique
+  pattern_label String
+  content       String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+}
+
+model Post {
+  id             String    @id @default(cuid())
+
+  post_author_id String?
+  post_date      DateTime?
+  post_content   String?
+  post_title     String
+  post_excerpt   String?
+  post_status    String    @default("draft")
+  post_name      String
+  post_type      String
+
+  post_meta_title       String?
+  post_meta_description String?
+
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  post_author    User?     @relation(fields: [post_author_id], references: [id])
+  revisions      PostRevision[]
+
+  @@unique([post_type, post_name])
+  @@index([post_type])
+  @@index([post_status])
+  @@index([post_date])
+}
+
+model PostRevision {
+  id          String   @id
+  post_id     String
+  created_at  DateTime @default(now())
+  label       String?
+  action_type String?
+  snapshot    String
+
+  post        Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id, created_at])
+}
